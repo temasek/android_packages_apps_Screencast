@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.WRITE_MEDIA_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" />
     <uses-permission android:name="android.permission.CAPTURE_VIDEO_OUTPUT" />
     <uses-permission android:name="android.permission.CAPTURE_SECURE_VIDEO_OUTPUT" />
 
@@ -36,11 +37,13 @@
         <receiver android:name=".ScreencastStartReceiver" android:permission="android.permission.CAPTURE_SECURE_VIDEO_OUTPUT">
             <intent-filter>
                 <action android:name="org.cyanogenmod.ACTION_START_SCREENCAST" />
+                <action android:name="org.cyanogenmod.ACTION_START_SCREENCAST_REMOTE" />
                 <action android:name="com.cyanogenmod.ACTION_START_SCREENCAST" />
             </intent-filter>
         </receiver>
         <receiver android:name=".ScreencastControlReceiver">
             <intent-filter>
+                <action android:name="org.cyanogenmod.ACTION_TOGGLE_SCREENCAST"/>
                 <action android:name="org.cyanogenmod.ACTION_STOP_SCREENCAST"/>
                 <action android:name="org.cyanogenmod.SHOW_TOUCHES"/>
             </intent-filter>

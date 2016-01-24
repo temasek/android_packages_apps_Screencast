@@ -40,13 +40,15 @@ class RecordingDevice extends EncoderDevice {
     private static final String LOGTAG = "RecordingDevice";
     private static final File RECORDINGS_DIR = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Screencasts");
     File path;
+    private static boolean mUseRemoteAudio;
 
-    public RecordingDevice(Context context, int width, int height) {
+    public RecordingDevice(Context context, int width, int height, boolean remote) {
         super(context, width, height);
         // Prepare all the output metadata
         String videoDate = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date(System.currentTimeMillis()));
         // the directory which holds all recording files
         path = new File(RECORDINGS_DIR, "Screencast_" + videoDate + ".mp4");
+        mUseRemoteAudio = remote;
     }
 
     /**
@@ -139,7 +141,7 @@ class RecordingDevice extends EncoderDevice {
             format = new MediaFormat();
             format.setString(MediaFormat.KEY_MIME, "audio/mp4a-latm");
             format.setInteger(MediaFormat.KEY_BIT_RATE, 64 * 1024);
-            format.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
+            format.setInteger(MediaFormat.KEY_CHANNEL_COUNT, mUseRemoteAudio ? 2 : 1);
             format.setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100);
             format.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectHE);
             codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
@@ -148,11 +150,19 @@ class RecordingDevice extends EncoderDevice {
             this.recorder = recorder;
 
             int bufferSize = 1024 * 30;
-            int minBufferSize = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            int minBufferSize = AudioRecord.getMinBufferSize(44100, mUseRemoteAudio
+                    ? AudioFormat.CHANNEL_IN_STEREO : AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT);
             if (bufferSize < minBufferSize)
                 bufferSize = ((minBufferSize / 1024) + 1) * 1024 * 2;
             Log.i(LOGTAG, "AudioRecorder init");
-            record = new AudioRecord(MediaRecorder.AudioSource.MIC, 44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+            if (mUseRemoteAudio) {
+                record = new AudioRecord(MediaRecorder.AudioSource.REMOTE_SUBMIX, 44100,
+                        AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+            } else {
+                record = new AudioRecord(MediaRecorder.AudioSource.MIC, 44100,
+                        AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+            }
         }
 
         @Override

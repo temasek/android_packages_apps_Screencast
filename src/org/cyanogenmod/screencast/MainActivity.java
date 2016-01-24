@@ -43,6 +43,17 @@ public class MainActivity extends Activity {
             }
         });
 
+        mStartScreencastButton = (Button) findViewById(R.id.start_screencast_remote);
+        mStartScreencastButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getSharedPreferences(ScreencastService.PREFS, 0).edit().putBoolean(ScreencastService.KEY_RECORDING, true).apply();
+                startService(new Intent("org.cyanogenmod.ACTION_START_SCREENCAST_REMOTE")
+                        .setClass(MainActivity.this, ScreencastService.class));
+                finish();
+            }
+        });
+
         mStopScreencastButton = (Button) findViewById(R.id.stop_screencast);
         mStopScreencastButton.setOnClickListener(new View.OnClickListener() {
             @Override

@@ -51,13 +51,19 @@ public class ScreencastService extends Service {
     public static final String SCREENCASTER_NAME = "hidden:screen-recording";
     public static final String PREFS = "preferences";
     static final String KEY_RECORDING = "recording";
+    static final String KEY_REMOTE = "remote";
     private long startTime;
     private Timer timer;
     private Notification.Builder mBuilder;
     RecordingDevice mRecorder;
 
-    private static final String ACTION_START_SCREENCAST = "org.cyanogenmod.ACTION_START_SCREENCAST";
+    private static final String ACTION_START_SCREENCAST =
+            "org.cyanogenmod.ACTION_START_SCREENCAST";
+    private static final String ACTION_START_SCREENCAST_REMOTE =
+            "org.cyanogenmod.ACTION_START_SCREENCAST_REMOTE";
     private static final String ACTION_STOP_SCREENCAST = "org.cyanogenmod.ACTION_STOP_SCREENCAST";
+    private static final String ACTION_TOGGLE_SCREENCAST =
+            "org.cyanogenmod.ACTION_TOGGLE_SCREENCAST";
 
     private static final String SHOW_TOUCHES = "show_touches";
 
@@ -144,7 +150,7 @@ public class ScreencastService extends Service {
         return ret;
     }
 
-    void registerScreencaster() throws RemoteException {
+    void registerScreencaster(boolean remote) throws RemoteException {
         DisplayManager dm = (DisplayManager)getSystemService(DISPLAY_SERVICE);
         Display display = dm.getDisplay(Display.DEFAULT_DISPLAY);
         DisplayMetrics metrics = new DisplayMetrics();
@@ -153,11 +159,43 @@ public class ScreencastService extends Service {
         assert mRecorder == null;
         Point size = getNativeResolution();
         // size = new Point(1080, 1920);
-        mRecorder = new RecordingDevice(this, size.x, size.y);
+        mRecorder = new RecordingDevice(this, size.x, size.y, remote);
         VirtualDisplay vd = mRecorder.registerVirtualDisplay(this,
                 SCREENCASTER_NAME, size.x, size.y, metrics.densityDpi);
         if (vd == null)
             cleanup();
+    }
+
+    private int startCasting(boolean remote) {
+        try {
+            if (!hasAvailableSpace()) {
+                Toast.makeText(this, R.string.not_enough_storage, Toast.LENGTH_LONG).show();
+                return START_NOT_STICKY;
+            }
+            startTime = SystemClock.elapsedRealtime();
+            registerScreencaster(remote);
+            mBuilder = createNotificationBuilder();
+            Settings.System.putInt(getContentResolver(), SHOW_TOUCHES, 1);
+            addNotificationTouchButton(true);
+
+            timer = new Timer();
+            timer.scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    updateNotification(ScreencastService.this);
+                }
+            }, 100, 1000);
+
+            getSharedPreferences(ScreencastService.PREFS, 0)
+                    .edit().putBoolean(ScreencastService.KEY_RECORDING, true).apply();
+            getSharedPreferences(ScreencastService.PREFS, 0)
+                    .edit().putBoolean(ScreencastService.KEY_REMOTE, remote).apply();
+            return START_STICKY;
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Failed to start screenrecord", e);
+        }
+
+        return START_NOT_STICKY;
     }
 
     private void stopCasting() {
@@ -182,34 +220,11 @@ public class ScreencastService extends Service {
         } else if ("org.cyanogenmod.server.display.STOP_SCAN".equals(intent.getAction())) {
            return START_STICKY;
         } else if (TextUtils.equals(intent.getAction(), ACTION_START_SCREENCAST)
+                 || TextUtils.equals(intent.getAction(), ACTION_START_SCREENCAST_REMOTE)
                  || TextUtils.equals(intent.getAction(), "com.cyanogenmod.ACTION_START_SCREENCAST")
                 ) {
-            try {
-                if (!hasAvailableSpace()) {
-                    Toast.makeText(this, R.string.not_enough_storage, Toast.LENGTH_LONG).show();
-                    return START_NOT_STICKY;
-                }
-                startTime = SystemClock.elapsedRealtime();
-                registerScreencaster();
-                mBuilder = createNotificationBuilder();
-                Settings.System.putInt(getContentResolver(), SHOW_TOUCHES, 1);
-                addNotificationTouchButton(true);
-
-                timer = new Timer();
-                timer.scheduleAtFixedRate(new TimerTask() {
-                    @Override
-                    public void run() {
-                        updateNotification(ScreencastService.this);
-                    }
-                }, 100, 1000);
-
-                getSharedPreferences(ScreencastService.PREFS, 0)
-                        .edit().putBoolean(ScreencastService.KEY_RECORDING, true).apply();
-                return START_STICKY;
-            }
-            catch (Exception e) {
-                Log.e("Mirror", "error", e);
-            }
+            boolean remote = TextUtils.equals(intent.getAction(), ACTION_START_SCREENCAST_REMOTE);
+            return startCasting(remote);
         } else if (TextUtils.equals(intent.getAction(), ACTION_STOP_SCREENCAST)) {
             stopCasting();
         } else if (intent.getAction().equals("org.cyanogenmod.SHOW_TOUCHES")) {
@@ -217,6 +232,17 @@ public class ScreencastService extends Service {
             mBuilder = createNotificationBuilder();
             addNotificationTouchButton("on".equals(showTouchesValue));
             return START_STICKY;
+        } else if (intent.getAction().equals(ACTION_TOGGLE_SCREENCAST)) {
+            boolean isRecording = getSharedPreferences(ScreencastService.PREFS, 0)
+                    .getBoolean(ScreencastService.KEY_RECORDING, false);
+            if (isRecording) {
+                stopCasting();
+            } else {
+                // use last used audio source
+                boolean remote = getSharedPreferences(ScreencastService.PREFS, 0)
+                        .getBoolean(ScreencastService.KEY_REMOTE, true);
+                return startCasting(remote);
+            }
         }
         return START_NOT_STICKY;
     }

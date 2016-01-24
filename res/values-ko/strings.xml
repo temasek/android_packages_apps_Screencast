@@ -26,5 +26,6 @@
   <string name="video_length">비디오 길이: %s</string>
   <string name="not_enough_storage">저장소가 충분하지 않습니다</string>
   <string name="start_screencast">스크린캐스트 시작</string>
+  <string name="start_screencast_remote">스크린캐스트 시작 (내부 소리)</string>
   <string name="start_description">\"스크린캐스트 시작\" 버튼을 눌러 Android 화면과 마이크로폰 녹화를 시작합니다.</string>
 </resources>
