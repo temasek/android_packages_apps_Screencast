@@ -214,7 +214,7 @@ public abstract class EncoderDevice {
             VideoEncoderCap v = encoders.get(0);
             maxWidth = v.maxFrameWidth;
             maxHeight = v.maxFrameHeight;
-            bitrate = v.maxBitRate;
+            bitrate = 2000000;
         }
         catch (Exception e) {
             CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_1080P);
